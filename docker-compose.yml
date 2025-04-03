@@ -1,4 +1,3 @@
-version: "3"
 services:
   cowrie:
     image: cowrie/cowrie
@@ -11,6 +10,29 @@ services:
       - ./cowrie/config/cowrie.cfg:/cowrie/cowrie-git/etc/cowrie.cfg
       - ./cowrie/config/userdb.txt:/cowrie/cowrie-git/etc/userdb.txt
       - ./cowrie/log/cowrie.json:/cowrie/cowrie-git/var/log/cowrie/cowrie.json
+
+  dionaea:
+    image: dinotools/dionaea
+    ports:
+      - "21:21"
+      - "42:42"
+      - "69:69/udp"
+      - "80:80"
+      - "443:443"
+      - "445:445"
+      - "1433:1433"
+      - "1723:1723"
+      - "1883:1883"
+      - "3306:3306"
+      - "5060:5060"
+      - "5060:5060/udp"
+      - "11211:11211"
+    volumes:
+      - ./dionaea/log:/var/dionaea/log
+      - ./dionaea/config:/etc/dionaea
+    networks:
+      - elastic
+
   elasticsearch:
     build: ./elasticsearch
     environment:
@@ -52,9 +74,11 @@ services:
     build: ./filebeat
     volumes:
       - ./cowrie/log/cowrie.json:/var/log/cowrie/cowrie.json
+      - ./dionaea/log:/var/log/dionaea
       - ./filebeat/config/filebeat.yml:/usr/share/filebeat/filebeat.yml
     depends_on:
       - elasticsearch
+      - logstash
     networks:
       - elastic
 
