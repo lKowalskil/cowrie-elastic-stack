@@ -2,23 +2,64 @@ filebeat.inputs:
 - type: log
   enabled: true
   paths:
-    - /var/log/cowrie/cowrie.json
+    - /cowrie-logs/*.json
+    - /cowrie-logs/cowrie.json
   json.keys_under_root: true
   json.overwrite_keys: true
   json.add_error_key: true
-  json.expand_keys: true
+  tags: ["cowrie"]
+  fields:
+    type: cowrie
+  fields_under_root: true
 
 - type: log
   enabled: true
   paths:
-    - /var/log/dionaea/dionaea.json
+    - /dionaea-logs/*.json
+    - /dionaea-logs/dionaea.json
   json.keys_under_root: true
   json.overwrite_keys: true
   json.add_error_key: true
-  json.expand_keys: true
+  tags: ["dionaea"]
+  fields:
+    type: dionaea
+  fields_under_root: true
+
+# Добавляем просмотр логов docker для отладки
+- type: log
+  enabled: true
+  paths:
+    - /host-logs/docker/containers/*/*-json.log
+  json.keys_under_root: true
+  tags: ["docker"]
+  fields:
+    type: docker
+  fields_under_root: true
 
 output.logstash:
   hosts: ["logstash:5044"]
+  timeout: 60s
+  backoff.max: 120s
+
+logging.level: debug
+logging.to_files: true
+logging.files:
+  path: /var/log
+  name: filebeat.log
+  keepfiles: 7
+  permissions: 0644
 
 http.enabled: true
 http.host: 0.0.0.0
+
+# Добавляем прямой выход в Elasticsearch для отладки
+output.elasticsearch:
+  enabled: false
+  hosts: ["elasticsearch:9200"]
+  indices:
+    - index: "cowrie-%{+yyyy.MM.dd}"
+      when.contains:
+        tags: "cowrie"
+    - index: "dionaea-%{+yyyy.MM.dd}"
+      when.contains:
+        tags: "dionaea"
