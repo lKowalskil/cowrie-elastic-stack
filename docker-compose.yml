@@ -7,36 +7,44 @@ services:
       - "2222:2222"
       - "2323:2323"
     volumes:
-      - ./cowrie/config:/cowrie/cowrie-git/etc
-      - ./cowrie/downloads:/cowrie/cowrie-git/var/lib/cowrie/downloads
-      - ./cowrie/log:/cowrie/cowrie-git/var/log/cowrie
+      - ./cowrie/config/cowrie.cfg:/cowrie/cowrie-git/etc/cowrie.cfg
+      - ./cowrie/config/userdb.txt:/cowrie/cowrie-git/etc/userdb.txt
+      - ./cowrie/log/cowrie.json:/cowrie/cowrie-git/var/log/cowrie/cowrie.json
     environment:
       - PYTHONUNBUFFERED=1
+    restart: unless-stopped
     networks:
       - elastic
-
-  dionaea:
-    image: dinotools/dionaea
+      
+  heralding:
+    image: heywoodlh/heralding:latest
     ports:
       - "21:21"
-      - "42:42"
-      - "69:69/udp"
+      - "25:25"
       - "80:80"
+      - "110:110"
+      - "143:143"
       - "443:443"
-      - "445:445"
-      - "1433:1433"
-      - "1723:1723"
-      - "1883:1883"
+      - "465:465"
+      - "993:993"
+      - "995:995"
+      - "1080:1080"
       - "3306:3306"
-      - "5060:5060"
-      - "5060:5060/udp"
-      - "11211:11211"
+      - "3389:3389"
+      - "5432:5432"
+      - "5900:5900"
     volumes:
-      - ./dionaea/log:/opt/dionaea/var/log/dionaea
-      - ./dionaea/config:/opt/dionaea/etc/dionaea/dionaea.cfg:ro
+      - ./heralding/config/heralding.yml:/etc/heralding/heralding.yml
+      - ./heralding/logs/log_session.json:/log_session.json
+      - ./heralding/logs/log_auth.csv:/log_auth.csv
+      - ./heralding/logs/log_session.csv:/log_session.csv
+      - ./heralding/logs:/var/log
+    environment:
+      - WORKDIR=/etc/heralding
+    restart: unless-stopped
     networks:
       - elastic
-
+      
   elasticsearch:
     build: ./elasticsearch
     environment:
@@ -49,6 +57,7 @@ services:
       - elasticsearch:/usr/share/elasticsearch/data
     networks:
       - elastic
+      
   kibana:
     build: ./kibana
     environment:
@@ -61,6 +70,7 @@ services:
       - elasticsearch
     networks:
       - elastic
+      
   logstash:
     build: ./logstash
     ports:
@@ -74,28 +84,22 @@ services:
       - elasticsearch
     networks:
       - elastic
+      
   filebeat:
     build: ./filebeat
-    user: root
     volumes:
-      - ./cowrie/log:/cowrie-logs:ro
-      - ./dionaea/log:/dionaea-logs:ro
-      - ./filebeat/config/filebeat.yml:/usr/share/filebeat/filebeat.yml
-      # Добавляем доступ к логам docker для отладки
-      - /var/log:/host-logs:ro
+      - ./cowrie/log/cowrie.json:/var/log/cowrie/cowrie.json:ro
+      - ./heralding/logs/log_session.json:/var/log/heralding/log_session.json:ro
+      - ./heralding/logs/log_auth.csv:/var/log/heralding/log_auth.csv:ro
+      - ./heralding/logs/log_session.csv:/var/log/heralding/log_session.csv:ro
+      - ./filebeat/config/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
     depends_on:
       - elasticsearch
       - logstash
+    restart: unless-stopped
     networks:
       - elastic
-  logcheck:
-    image: alpine:latest
-    command: sh -c "while true; do echo '=== Cowrie Logs ==='; ls -la /cowrie-logs/; echo '=== Dionaea Logs ==='; ls -la /dionaea-logs/; sleep 10; done"
-    volumes:
-      - ./cowrie/log:/cowrie-logs:ro
-      - ./dionaea/log:/dionaea-logs:ro
-    networks:
-      - elastic
+
 volumes:
   elasticsearch:
 

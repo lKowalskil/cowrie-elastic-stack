@@ -2,64 +2,61 @@ filebeat.inputs:
 - type: log
   enabled: true
   paths:
-    - /cowrie-logs/*.json
-    - /cowrie-logs/cowrie.json
+    - /var/log/cowrie/cowrie.json
   json.keys_under_root: true
   json.overwrite_keys: true
   json.add_error_key: true
+  json.expand_keys: true
+  fields:
+    honeypot: "cowrie"
+    source_type: "cowrie-json"
+  fields_under_root: true
   tags: ["cowrie"]
-  fields:
-    type: cowrie
-  fields_under_root: true
 
 - type: log
   enabled: true
   paths:
-    - /dionaea-logs/*.json
-    - /dionaea-logs/dionaea.json
+    - /var/log/heralding/log_session.json
   json.keys_under_root: true
   json.overwrite_keys: true
   json.add_error_key: true
-  tags: ["dionaea"]
+  json.expand_keys: true
   fields:
-    type: dionaea
+    honeypot: "heralding"
+    log_type: "session_json"
+    source_type: "heralding-json" 
   fields_under_root: true
+  tags: ["heralding"]
 
-# Добавляем просмотр логов docker для отладки
 - type: log
   enabled: true
   paths:
-    - /host-logs/docker/containers/*/*-json.log
-  json.keys_under_root: true
-  tags: ["docker"]
+    - /var/log/heralding/log_auth.csv
   fields:
-    type: docker
+    honeypot: "heralding"
+    log_type: "auth_csv"
+    source_type: "heralding-csv"
   fields_under_root: true
+  tags: ["heralding"]
+
+- type: log
+  enabled: true
+  paths:
+    - /var/log/heralding/log_session.csv
+  fields:
+    honeypot: "heralding"
+    log_type: "session_csv"
+    source_type: "heralding-csv"
+  fields_under_root: true
+  tags: ["heralding"]
+
+processors:
+  - add_host_metadata: ~
+  - add_cloud_metadata: ~
 
 output.logstash:
   hosts: ["logstash:5044"]
-  timeout: 60s
-  backoff.max: 120s
-
-logging.level: debug
-logging.to_files: true
-logging.files:
-  path: /var/log
-  name: filebeat.log
-  keepfiles: 7
-  permissions: 0644
+  index: "%{[honeypot]}"
 
 http.enabled: true
 http.host: 0.0.0.0
-
-# Добавляем прямой выход в Elasticsearch для отладки
-output.elasticsearch:
-  enabled: false
-  hosts: ["elasticsearch:9200"]
-  indices:
-    - index: "cowrie-%{+yyyy.MM.dd}"
-      when.contains:
-        tags: "cowrie"
-    - index: "dionaea-%{+yyyy.MM.dd}"
-      when.contains:
-        tags: "dionaea"
